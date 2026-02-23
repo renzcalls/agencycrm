@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agency CRM</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0f11; --surface: #16181c; --card: #1c1f26; --border: #2a2d36;
+    --accent: #4fffb0; --accent2: #4f9fff; --warn: #ffb84f; --danger: #ff6b6b;
+    --text: #e8eaf0; --muted: #6b7080; --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; }
+
+  /* LOGIN */
+  #login-screen {
+    position: fixed; inset: 0; background: var(--bg);
+    display: flex; align-items: center; justify-content: center; z-index: 999;
+  }
+  #login-screen.hidden { display: none; }
+  .login-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 20px; padding: 44px 40px; width: 360px; max-width: 90vw;
+    display: flex; flex-direction: column; gap: 18px;
+  }
+  .login-logo { font-family: 'DM Mono', monospace; font-size: 20px; color: var(--accent); text-align: center; letter-spacing: 0.06em; }
+  .login-logo span { color: var(--muted); }
+  .login-subtitle { text-align: center; font-size: 13px; color: var(--muted); margin-top: -8px; }
+  .login-group { display: flex; flex-direction: column; gap: 6px; }
+  .login-group label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  .login-input {
+    background: var(--card); border: 1px solid var(--border); color: var(--text);
+    padding: 12px 14px; border-radius: 9px; font-size: 14px;
+    font-family: 'DM Sans', sans-serif; outline: none; transition: border-color 0.15s; width: 100%;
+  }
+  .login-input:focus { border-color: var(--accent); }
+  .login-btn {
+    background: var(--accent); color: #0e0f11; border: none; padding: 13px;
+    border-radius: 9px; font-size: 14px; font-weight: 700;
+    font-family: 'DM Sans', sans-serif; cursor: pointer; transition: opacity 0.15s; width: 100%;
+  }
+  .login-btn:hover { opacity: 0.85; }
+  .login-error { font-size: 13px; color: var(--danger); text-align: center; min-height: 16px; }
+
+  /* APP */
+  #app { display: flex; width: 100%; }
+  #app.hidden { display: none; }
+
+  .sidebar {
+    width: 220px; background: var(--surface); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; padding: 28px 16px; gap: 6px; flex-shrink: 0;
+  }
+  .logo { font-family: 'DM Mono', monospace; font-size: 14px; color: var(--accent); padding: 0 8px 24px; letter-spacing: 0.05em; }
+  .logo span { color: var(--muted); }
+  .nav-btn {
+    background: none; border: none; color: var(--muted); font-family: 'DM Sans', sans-serif;
+    font-size: 14px; font-weight: 500; padding: 10px 12px; border-radius: 8px; cursor: pointer;
+    text-align: left; display: flex; align-items: center; gap: 10px; transition: all 0.15s; width: 100%;
+  }
+  .nav-btn:hover { background: var(--card); color: var(--text); }
+  .nav-btn.active { background: var(--card); color: var(--accent); }
+  .nav-btn .icon { font-size: 16px; width: 20px; text-align: center; }
+  .sidebar-footer { margin-top: auto; padding: 12px; background: var(--card); border-radius: 10px; font-size: 12px; color: var(--muted); }
+  .sidebar-footer strong { color: var(--text); display: block; margin-bottom: 6px; }
+  .logout-btn { background: none; border: none; color: var(--danger); font-family: 'DM Sans', sans-serif; font-size: 12px; cursor: pointer; padding: 0; opacity: 0.7; transition: opacity 0.15s; }
+  .logout-btn:hover { opacity: 1; }
+
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { padding: 20px 32px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: var(--surface); }
+  .topbar h1 { font-size: 18px; font-weight: 600; }
+  .topbar .meta { font-family: 'DM Mono', monospace; font-size: 13px; color: var(--muted); }
+  .role-badge { font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .role-badge.admin { background: rgba(79,255,176,0.12); color: var(--accent); }
+  .role-badge.worker { background: rgba(79,159,255,0.12); color: var(--accent2); }
+
+  .content { flex: 1; overflow-y: auto; padding: 32px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+
+  /* DASHBOARD */
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+  .stat-card .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+  .stat-card .value { font-family: 'DM Mono', monospace; font-size: 28px; font-weight: 500; }
+  .stat-card .value.green { color: var(--accent); }
+  .stat-card .value.blue { color: var(--accent2); }
+  .stat-card .value.yellow { color: var(--warn); }
+  .dash-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .section-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 14px; }
+  .activity-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .activity-item:last-child { border-bottom: none; }
+  .activity-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+  .activity-item p { font-size: 14px; line-height: 1.4; }
+  .activity-item .time { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .meeting-item { padding: 12px 0; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .meeting-item:last-child { border-bottom: none; }
+  .meeting-item .name { font-size: 14px; font-weight: 500; }
+  .meeting-item .details { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .badge { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .badge.green { background: rgba(79,255,176,0.12); color: var(--accent); }
+  .badge.blue { background: rgba(79,159,255,0.12); color: var(--accent2); }
+  .badge.yellow { background: rgba(255,184,79,0.12); color: var(--warn); }
+  .badge.red { background: rgba(255,107,107,0.12); color: var(--danger); }
+
+  /* CLIENTS */
+  .table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  .btn { background: var(--accent); color: #0e0f11; border: none; padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity 0.15s; font-family: 'DM Sans', sans-serif; }
+  .btn:hover { opacity: 0.85; }
+  .btn.secondary { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+  .search-input { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 9px 14px; border-radius: 8px; font-size: 13px; font-family: 'DM Sans', sans-serif; width: 220px; outline: none; transition: border-color 0.15s; }
+  .search-input:focus { border-color: var(--accent); }
+  .search-input::placeholder { color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  td { padding: 14px; font-size: 14px; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  /* COLD CALLS */
+  .call-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; display: flex; align-items: center; gap: 16px; margin-bottom: 10px; transition: border-color 0.15s; }
+  .call-card:hover { border-color: var(--accent2); }
+  .call-card input[type=checkbox] { width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent); flex-shrink: 0; }
+  .call-card .info { flex: 1; }
+  .call-card .cname { font-size: 15px; font-weight: 600; }
+  .call-card .contact { font-size: 13px; color: var(--muted); margin-top: 3px; }
+  .call-card .note { font-size: 12px; color: var(--muted); margin-top: 4px; font-style: italic; }
+  .call-card.done { opacity: 0.45; }
+  .call-card.done .cname { text-decoration: line-through; }
+  .status-pills { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .status-pill {
+    font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 20px;
+    border: 1px solid var(--border); background: var(--bg); color: var(--muted);
+    cursor: pointer; transition: all 0.15s; font-family: 'DM Sans', sans-serif;
+    letter-spacing: 0.03em;
+  }
+  .status-pill:hover { border-color: var(--accent2); color: var(--text); }
+  .status-pill.active-answered  { background: rgba(79,255,176,0.12); border-color: var(--accent);  color: var(--accent);  }
+  .status-pill.active-voicemail { background: rgba(255,184,79,0.12);  border-color: var(--warn);   color: var(--warn);   }
+  .status-pill.active-no-answer { background: rgba(79,159,255,0.12);  border-color: var(--accent2);color: var(--accent2);}
+  .status-pill.active-callback  { background: rgba(255,107,107,0.12); border-color: var(--danger); color: var(--danger); }
+  .status-pill.active-not-interested { background: rgba(107,112,128,0.15); border-color: var(--muted); color: var(--muted); }
+  .del-btn { background: none; border: none; color: var(--danger); cursor: pointer; font-size: 16px; opacity: 0.5; transition: opacity 0.15s; }
+  .del-btn:hover { opacity: 1; }
+
+  /* CALENDAR */
+  .cal-grid { display: grid; grid-template-columns: 1fr 320px; gap: 20px; }
+  .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .cal-nav { background: var(--card); border: 1px solid var(--border); color: var(--text); width: 32px; height: 32px; border-radius: 6px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; }
+  .cal-title { font-size: 16px; font-weight: 600; }
+  .cal-days-header { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 4px; }
+  .cal-day-label { text-align: center; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--muted); padding: 6px 0; letter-spacing: 0.06em; }
+  .cal-cells { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+  .cal-cell { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 6px 4px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; transition: all 0.12s; }
+  .cal-cell:hover { background: var(--card); border-color: var(--border); }
+  .cal-cell.today { background: rgba(79,255,176,0.08); border-color: var(--accent); }
+  .cal-cell.today .day-num { color: var(--accent); font-weight: 700; }
+  .cal-cell.selected { background: var(--accent); }
+  .cal-cell.selected .day-num { color: #0e0f11; font-weight: 700; }
+  .cal-cell.empty { cursor: default; pointer-events: none; }
+  .day-num { font-family: 'DM Mono', monospace; font-size: 13px; }
+  .event-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent2); margin-top: 3px; }
+  .form-group { margin-bottom: 14px; }
+  .form-group label { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 6px; }
+  .form-input { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 9px 12px; border-radius: 8px; font-size: 13px; font-family: 'DM Sans', sans-serif; outline: none; transition: border-color 0.15s; }
+  .form-input:focus { border-color: var(--accent); }
+  .meeting-entry { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+  .meeting-entry .m-title { font-size: 14px; font-weight: 600; }
+  .meeting-entry .m-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* MODAL */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 28px; width: 420px; max-width: 90vw; }
+  .modal h3 { font-size: 16px; margin-bottom: 20px; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════
+     LOGIN SCREEN
+═══════════════════════════════════ -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">agency<span>.crm</span></div>
+    <p class="login-subtitle">Enter your password to continue</p>
+    <div class="login-group">
+      <label>Password</label>
+      <input class="login-input" type="password" id="login-pass" placeholder="••••••••"
+        onkeydown="if(event.key==='Enter') doLogin()">
+    </div>
+    <div class="login-error" id="login-error"></div>
+    <button class="login-btn" onclick="doLogin()">Sign In →</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════
+     APP
+═══════════════════════════════════ -->
+<div id="app" class="hidden">
+
+  <nav class="sidebar">
+    <div class="logo">agency<span>.crm</span></div>
+    <button class="nav-btn active" id="nav-dashboard" onclick="switchTab('dashboard',this)"><span class="icon">◈</span> Dashboard</button>
+    <button class="nav-btn" id="nav-clients" onclick="switchTab('clients',this)"><span class="icon">◉</span> Clients</button>
+    <button class="nav-btn" id="nav-coldcalls" onclick="switchTab('coldcalls',this)"><span class="icon">◎</span> Cold Calls</button>
+    <button class="nav-btn" id="nav-calendar" onclick="switchTab('calendar',this)"><span class="icon">▣</span> Calendar</button>
+    <div class="sidebar-footer">
+      <strong id="sidebar-user">—</strong>
+      <button class="logout-btn" onclick="doLogout()">Sign out</button>
+    </div>
+  </nav>
+
+  <div class="main">
+    <div class="topbar">
+      <h1 id="page-title">Dashboard</h1>
+      <div style="display:flex;align-items:center;gap:16px;">
+        <span class="role-badge" id="role-badge">—</span>
+        <div class="meta" id="clock">—</div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- DASHBOARD -->
+      <div class="panel active" id="panel-dashboard">
+        <div class="stats-grid">
+          <div class="stat-card"><div class="label">Active Clients</div><div class="value green" id="stat-clients">0</div></div>
+          <div class="stat-card"><div class="label">Cold Call Tasks</div><div class="value blue" id="stat-calls">0</div></div>
+          <div class="stat-card"><div class="label">Calls Completed</div><div class="value yellow" id="stat-done">0</div></div>
+          <div class="stat-card"><div class="label">Meetings This Month</div><div class="value" id="stat-meetings">0</div></div>
+        </div>
+        <div class="dash-row">
+          <div class="card">
+            <div class="section-title">Recent Activity</div>
+            <div id="activity-list"></div>
+          </div>
+          <div class="card">
+            <div class="section-title">Upcoming Meetings</div>
+            <div id="dash-meetings"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CLIENTS -->
+      <div class="panel" id="panel-clients">
+        <div class="table-header">
+          <input class="search-input" type="text" placeholder="Search clients…" oninput="filterClients(this.value)">
+          <button class="btn" onclick="openAddClient()">+ Add Client</button>
+        </div>
+        <div class="card" style="padding:0;overflow:hidden;">
+          <table><thead><tr><th>Name</th><th>Company</th><th>Contact</th><th>Value</th><th>Status</th><th></th></tr></thead>
+          <tbody id="clients-tbody"></tbody></table>
+        </div>
+      </div>
+
+      <!-- COLD CALLS -->
+      <div class="panel" id="panel-coldcalls">
+        <div class="table-header">
+          <span style="font-size:14px;color:var(--muted);" id="calls-counter">0 of 0 completed</span>
+          <button class="btn" onclick="openAddCall()" id="add-call-btn">+ Add Task</button>
+        </div>
+        <div id="calls-list"></div>
+      </div>
+
+      <!-- CALENDAR -->
+      <div class="panel" id="panel-calendar">
+        <div class="cal-grid">
+          <div class="card" style="padding:20px;">
+            <div class="cal-header">
+              <button class="cal-nav" onclick="prevMonth()">‹</button>
+              <div class="cal-title" id="cal-title"></div>
+              <button class="cal-nav" onclick="nextMonth()">›</button>
+            </div>
+            <div class="cal-days-header">
+              <div class="cal-day-label">Sun</div><div class="cal-day-label">Mon</div><div class="cal-day-label">Tue</div>
+              <div class="cal-day-label">Wed</div><div class="cal-day-label">Thu</div><div class="cal-day-label">Fri</div>
+              <div class="cal-day-label">Sat</div>
+            </div>
+            <div class="cal-cells" id="cal-cells"></div>
+          </div>
+          <div class="card">
+            <div class="section-title" id="selected-date-label">Select a date</div>
+            <div id="meeting-form-wrap">
+              <div class="form-group"><label>Meeting Title</label><input class="form-input" id="m-title" type="text" placeholder="e.g. Onboarding Call"></div>
+              <div class="form-group"><label>Client</label><input class="form-input" id="m-client" type="text" placeholder="Client name"></div>
+              <div class="form-group"><label>Time</label><input class="form-input" id="m-time" type="time" value="10:00"></div>
+              <button class="btn" onclick="addMeeting()" style="width:100%;">Book Meeting</button>
+            </div>
+            <div id="meetings-list" style="margin-top:16px;"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="modal-client">
+  <div class="modal">
+    <h3>Add New Client</h3>
+    <div class="form-group"><label>Full Name</label><input class="form-input" id="c-name" type="text" placeholder="John Smith"></div>
+    <div class="form-group"><label>Company</label><input class="form-input" id="c-company" type="text" placeholder="Acme Corp"></div>
+    <div class="form-group"><label>Email / Phone</label><input class="form-input" id="c-contact" type="text" placeholder="john@acme.com"></div>
+    <div class="form-group"><label>Monthly Value ($)</label><input class="form-input" id="c-value" type="number" placeholder="2500"></div>
+    <div class="form-group"><label>Status</label>
+      <select class="form-input" id="c-status">
+        <option>Active</option><option>Onboarding</option><option>Paused</option><option>Churned</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal('modal-client')">Cancel</button>
+      <button class="btn" onclick="saveClient()">Add Client</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-call">
+  <div class="modal">
+    <h3>Add Cold Call Task</h3>
+    <div class="form-group"><label>Company / Lead</label><input class="form-input" id="cc-name" type="text" placeholder="Target Company"></div>
+    <div class="form-group"><label>Contact Info</label><input class="form-input" id="cc-contact" type="text" placeholder="Phone / email"></div>
+    <div class="form-group"><label>Notes</label><input class="form-input" id="cc-note" type="text" placeholder="Brief note on the lead…"></div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal('modal-call')">Cancel</button>
+      <button class="btn" onclick="saveCall()">Add Task</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════
+//   ⚙️  CHANGE YOUR PASSWORDS HERE
+//   Admin = full access (dashboard, clients, calendar, cold calls)
+//   Worker = cold calls only (read + check off tasks)
+// ════════════════════════════════════════════════════
+const PASSWORDS = {
+  admin:  'admin123',    // ← your admin password
+  worker: 'worker123',   // ← your worker password
+};
+// ════════════════════════════════════════════════════
+
+let currentRole = null;
+
+function doLogin() {
+  const pass = document.getElementById('login-pass').value;
+  if (pass === PASSWORDS.admin)       currentRole = 'admin';
+  else if (pass === PASSWORDS.worker) currentRole = 'worker';
+  else {
+    document.getElementById('login-error').textContent = 'Incorrect password. Try again.';
+    document.getElementById('login-pass').value = '';
+    return;
+  }
+  document.getElementById('login-error').textContent = '';
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  applyRole();
+  initCal();
+  save();
+}
+
+function doLogout() {
+  currentRole = null;
+  document.getElementById('login-pass').value = '';
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('app').classList.add('hidden');
+}
+
+function applyRole() {
+  const isAdmin = currentRole === 'admin';
+  document.getElementById('sidebar-user').textContent = isAdmin ? 'Admin' : 'Worker';
+  const badge = document.getElementById('role-badge');
+  badge.textContent = isAdmin ? 'Admin' : 'Worker';
+  badge.className = 'role-badge ' + currentRole;
+  // Workers can't see Clients tab only
+  document.getElementById('nav-clients').style.display = isAdmin ? '' : 'none';
+  document.getElementById('add-call-btn').style.display = isAdmin ? '' : 'none';
+  // Both roles start on dashboard
+  switchTab('dashboard', document.getElementById('nav-dashboard'));
+}
+
+// CLOCK
+function updateClock() {
+  const now = new Date();
+  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  document.getElementById('clock').textContent =
+    `${days[now.getDay()]}, ${months[now.getMonth()]} ${now.getDate()} · ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+}
+updateClock(); setInterval(updateClock, 1000);
+
+// NAV
+function switchTab(tab, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-'+tab).classList.add('active');
+  btn.classList.add('active');
+  const titles = {dashboard:'Dashboard',clients:'Clients',coldcalls:'Cold Calls',calendar:'Calendar'};
+  document.getElementById('page-title').textContent = titles[tab];
+  if (tab==='calendar') renderCalendar();
+}
+
+// STATE
+let clients  = JSON.parse(localStorage.getItem('crm_clients')  || '[]');
+let calls    = JSON.parse(localStorage.getItem('crm_calls')    || '[]');
+let meetings = JSON.parse(localStorage.getItem('crm_meetings') || '[]');
+let activity = JSON.parse(localStorage.getItem('crm_activity') || '[]');
+let calYear, calMonth, selectedDate;
+
+function save() {
+  localStorage.setItem('crm_clients',  JSON.stringify(clients));
+  localStorage.setItem('crm_calls',    JSON.stringify(calls));
+  localStorage.setItem('crm_meetings', JSON.stringify(meetings));
+  localStorage.setItem('crm_activity', JSON.stringify(activity));
+  updateStats(); renderClients(); renderCalls(); renderDashActivity(); renderDashMeetings();
+}
+
+function addActivity(text, color='var(--accent)') {
+  const now = new Date();
+  activity.unshift({text, color, time: now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})});
+  if (activity.length > 20) activity.pop();
+}
+
+function updateStats() {
+  document.getElementById('stat-clients').textContent  = clients.filter(c=>c.status==='Active').length;
+  document.getElementById('stat-calls').textContent    = calls.length;
+  document.getElementById('stat-done').textContent     = calls.filter(c=>c.done).length;
+  const now = new Date();
+  document.getElementById('stat-meetings').textContent = meetings.filter(m=>{
+    const d=new Date(m.date); return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();
+  }).length;
+  const ctr = document.getElementById('calls-counter');
+  if (ctr) ctr.textContent = `${calls.filter(c=>c.done).length} of ${calls.length} completed`;
+}
+
+// CLIENTS
+function openAddClient() { document.getElementById('modal-client').classList.add('open'); }
+function closeModal(id)  { document.getElementById(id).classList.remove('open'); }
+function saveClient() {
+  const name = document.getElementById('c-name').value.trim(); if (!name) return;
+  clients.unshift({id:Date.now(), name,
+    company:document.getElementById('c-company').value.trim(),
+    contact:document.getElementById('c-contact').value.trim(),
+    value:document.getElementById('c-value').value,
+    status:document.getElementById('c-status').value});
+  addActivity(`Client added: <strong>${name}</strong>`,'var(--accent)');
+  save(); closeModal('modal-client');
+  ['c-name','c-company','c-contact','c-value'].forEach(id=>document.getElementById(id).value='');
+}
+function deleteClient(id) { clients=clients.filter(c=>c.id!==id); save(); }
+const SC = {Active:'green',Onboarding:'blue',Paused:'yellow',Churned:'red'};
+function renderClients(filter='') {
+  const list = filter ? clients.filter(c=>c.name.toLowerCase().includes(filter)||c.company.toLowerCase().includes(filter)) : clients;
+  document.getElementById('clients-tbody').innerHTML = list.length===0
+    ? `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:32px;">No clients yet.</td></tr>`
+    : list.map(c=>`<tr>
+        <td><strong>${c.name}</strong></td><td>${c.company||'—'}</td>
+        <td style="font-size:13px;">${c.contact||'—'}</td>
+        <td><span style="font-family:'DM Mono',monospace;">${c.value?'$'+parseInt(c.value).toLocaleString():'—'}</span></td>
+        <td><span class="badge ${SC[c.status]||'blue'}">${c.status}</span></td>
+        <td><button onclick="deleteClient(${c.id})" style="background:none;border:none;color:var(--danger);cursor:pointer;opacity:0.5;font-size:16px;">✕</button></td>
+      </tr>`).join('');
+}
+function filterClients(v) { renderClients(v.toLowerCase()); }
+
+// COLD CALLS
+function openAddCall() { document.getElementById('modal-call').classList.add('open'); }
+const CALL_STATUSES = [
+  { key: 'answered',      label: '✓ Answered',      color: 'var(--accent)'  },
+  { key: 'voicemail',     label: '✉ Voicemail',      color: 'var(--warn)'    },
+  { key: 'no-answer',     label: '✗ No Answer',      color: 'var(--accent2)' },
+  { key: 'callback',      label: '↩ Call Back',      color: 'var(--danger)'  },
+  { key: 'not-interested',label: '— Not Interested', color: 'var(--muted)'   },
+];
+
+function saveCall() {
+  const name = document.getElementById('cc-name').value.trim(); if (!name) return;
+  calls.unshift({id:Date.now(), name,
+    contact:document.getElementById('cc-contact').value.trim(),
+    note:document.getElementById('cc-note').value.trim(),
+    status: null, done:false});
+  addActivity(`Call task added: <strong>${name}</strong>`,'var(--accent2)');
+  save(); closeModal('modal-call');
+  ['cc-name','cc-contact','cc-note'].forEach(id=>document.getElementById(id).value='');
+}
+
+function setCallStatus(id, statusKey) {
+  const c = calls.find(c=>c.id===id);
+  if (!c) return;
+  // Toggle off if clicking same status
+  if (c.status === statusKey) { c.status = null; c.done = false; }
+  else {
+    c.status = statusKey;
+    c.done = (statusKey === 'answered' || statusKey === 'not-interested');
+    const s = CALL_STATUSES.find(s=>s.key===statusKey);
+    addActivity(`${c.name}: <strong>${s.label}</strong>`, s.color);
+  }
+  save();
+}
+
+function deleteCall(id) { calls=calls.filter(c=>c.id!==id); save(); }
+
+function renderCalls() {
+  const list = document.getElementById('calls-list');
+  if (calls.length===0) { list.innerHTML=`<div style="text-align:center;padding:40px;color:var(--muted);">No tasks yet.</div>`; return; }
+  const isAdmin = currentRole==='admin';
+
+  const pillsHtml = (c) => CALL_STATUSES.map(s =>
+    `<button class="status-pill ${c.status===s.key?'active-'+s.key:''}"
+      onclick="setCallStatus(${c.id},'${s.key}')">${s.label}</button>`
+  ).join('');
+
+  const row = c => `<div class="call-card ${c.done?'done':''}">
+    <div class="info" style="width:100%;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div class="cname">${c.name}</div>
+          ${c.contact?`<div class="contact">${c.contact}</div>`:''}
+          ${c.note?`<div class="note">${c.note}</div>`:''}
+        </div>
+        ${isAdmin?`<button onclick="deleteCall(${c.id})" class="del-btn" style="margin-left:12px;">✕</button>`:''}
+      </div>
+      <div class="status-pills">${pillsHtml(c)}</div>
+    </div>
+  </div>`;
+
+  const pending = calls.filter(c=>!c.done), done = calls.filter(c=>c.done);
+  list.innerHTML = pending.map(row).join('') +
+    (done.length?`<div style="margin:20px 0 10px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Completed</div>`+done.map(row).join(''):'');
+}
+
+// DASHBOARD
+function renderDashActivity() {
+  const el = document.getElementById('activity-list');
+  el.innerHTML = activity.length===0
+    ? `<div class="activity-item"><div class="activity-dot" style="background:var(--muted)"></div><div><p style="color:var(--muted);">No activity yet.</p></div></div>`
+    : activity.slice(0,6).map(a=>`<div class="activity-item"><div class="activity-dot" style="background:${a.color}"></div><div><p>${a.text}</p><div class="time">${a.time}</div></div></div>`).join('');
+}
+function renderDashMeetings() {
+  const now = new Date();
+  const up = meetings.filter(m=>new Date(m.date)>=new Date(now.toDateString())).sort((a,b)=>new Date(a.date)-new Date(b.date)).slice(0,5);
+  document.getElementById('dash-meetings').innerHTML = up.length===0
+    ? `<div style="font-size:14px;color:var(--muted);padding:12px 0;">No upcoming meetings.</div>`
+    : up.map(m=>`<div class="meeting-item"><div><div class="name">${m.title}</div><div class="details">${m.client} · ${formatDate(m.date)} at ${m.time}</div></div><span class="badge blue">Booked</span></div>`).join('');
+}
+function formatDate(d) { return new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
+
+// CALENDAR
+function initCal() {
+  const now = new Date();
+  calYear=now.getFullYear(); calMonth=now.getMonth(); selectedDate=now.toDateString();
+}
+function renderCalendar() {
+  const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('cal-title').textContent=`${MONTHS[calMonth]} ${calYear}`;
+  const first=new Date(calYear,calMonth,1).getDay(), days=new Date(calYear,calMonth+1,0).getDate(), today=new Date().toDateString();
+  let html='';
+  for(let i=0;i<first;i++) html+=`<div class="cal-cell empty"></div>`;
+  for(let d=1;d<=days;d++){
+    const ds=new Date(calYear,calMonth,d).toDateString();
+    const has=meetings.some(m=>new Date(m.date).toDateString()===ds);
+    html+=`<div class="cal-cell ${ds===today?'today':''} ${ds===selectedDate?'selected':''}" onclick="selectDate('${ds}')">
+      <span class="day-num">${d}</span>${has&&ds!==selectedDate?'<div class="event-dot"></div>':''}
+    </div>`;
+  }
+  document.getElementById('cal-cells').innerHTML=html;
+  updateSelectedDate();
+}
+function selectDate(ds) { selectedDate=ds; renderCalendar(); }
+function prevMonth() { calMonth--; if(calMonth<0){calMonth=11;calYear--;} renderCalendar(); }
+function nextMonth() { calMonth++; if(calMonth>11){calMonth=0;calYear++;} renderCalendar(); }
+function updateSelectedDate() {
+  document.getElementById('selected-date-label').textContent=new Date(selectedDate).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+  const dm=meetings.filter(m=>new Date(m.date).toDateString()===selectedDate);
+  document.getElementById('meetings-list').innerHTML=dm.length===0
+    ? `<div style="font-size:13px;color:var(--muted);">No meetings on this day.</div>`
+    : dm.map(m=>`<div class="meeting-entry"><div><div class="m-title">${m.title}</div><div class="m-sub">${m.client} · ${m.time}</div></div><button class="del-btn" onclick="deleteMeeting(${m.id})">✕</button></div>`).join('');
+}
+function addMeeting() {
+  const title=document.getElementById('m-title').value.trim(); if(!title||!selectedDate) return;
+  meetings.push({id:Date.now(),title,client:document.getElementById('m-client').value.trim()||'TBD',date:selectedDate,time:document.getElementById('m-time').value});
+  addActivity(`Meeting booked: <strong>${title}</strong>`,'var(--accent2)');
+  save(); document.getElementById('m-title').value=''; document.getElementById('m-client').value='';
+  renderCalendar();
+}
+function deleteMeeting(id) { meetings=meetings.filter(m=>m.id!==id); save(); renderCalendar(); }
+</script>
+</body>
+</html>
